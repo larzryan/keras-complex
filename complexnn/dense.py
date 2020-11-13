@@ -5,11 +5,11 @@
 # Authors: Chiheb Trabelsi
 #
 
-from keras import backend as K
+from tensorflow.keras import backend as K
 import sys; sys.path.append('.')
-from keras import backend as K
-from keras import activations, initializers, regularizers, constraints
-from keras.layers import Layer, InputSpec
+from tensorflow.keras import backend as K
+from tensorflow.keras import activations, initializers, regularizers, constraints
+from tensorflow.keras.layers import Layer, InputSpec
 import numpy as np
 from numpy.random import RandomState
 

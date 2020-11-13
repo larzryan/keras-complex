@@ -12,9 +12,9 @@
 #       https://github.com/fchollet/keras/blob/master/keras/layers/normalization.py
 
 import numpy as np
-from keras.layers import Layer, InputSpec
-from keras import initializers, regularizers, constraints
-import keras.backend as K
+from tensorflow.keras.layers import Layer, InputSpec
+from tensorflow.keras import initializers, regularizers, constraints
+import tensorflow.keras.backend as K
 
 
 def sqrt_init(shape, dtype=None):

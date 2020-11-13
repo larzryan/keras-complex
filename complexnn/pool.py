@@ -5,10 +5,10 @@
 # Authors: Olexa Bilaniuk
 #
 
-import keras.backend                        as KB
-import keras.engine                         as KE
-import keras.layers                         as KL
-import keras.optimizers                     as KO
+import tensorflow.keras.backend                        as KB
+import tensorflow.keras                         as KE
+import tensorflow.keras.layers                         as KL
+import tensorflow.keras.optimizers                     as KO
 import numpy                                as np
 
 
@@ -17,7 +17,7 @@ import numpy                                as np
 #
 
 class SpectralPooling1D(KL.Layer):
-	def __init__(self, topf=(0,)):
+	def __init__(self, topf=(0,), **kwargs):
 		super(SpectralPooling1D, self).__init__()
 		if   "topf"  in kwargs:
 			self.topf  = (int  (kwargs["topf" ][0]),)

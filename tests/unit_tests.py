@@ -1,7 +1,7 @@
 import unittest
 
-from keras.layers import Input
-from keras.models import Model
+from tensorflow.keras.layers import Input
+from tensorflow.keras.models import Model
 import tensorflow as tf
 
 import numpy as np
@@ -24,7 +24,7 @@ class TestDNCMethods(unittest.TestCase):
         input_shape = (None, 128, 128, 2)
         true = (None, 64, 64, 8)
         calc = layer.compute_output_shape(input_shape)
-        assert true == calc
+        self.assertEqual(true, calc)
 
     def test_outputs_transpose(self):
         """Test computed shape of transposed convolution output"""
@@ -37,7 +37,7 @@ class TestDNCMethods(unittest.TestCase):
         input_shape = (None, 64, 64, 4)
         true = (None, 128, 128, 4)
         calc = layer.compute_output_shape(input_shape)
-        assert true == calc
+        self.assertEqual(true, calc)
 
     def test_conv2Dforward(self):
         """Test shape of model output, forward"""
@@ -51,7 +51,7 @@ class TestDNCMethods(unittest.TestCase):
         model = Model(inputs=inputs, outputs=outputs)
         true = (None, 64, 64, 8)
         calc = model.output_shape
-        assert true == calc
+        self.assertEqual(true, calc)
 
     def test_conv2Dtranspose(self):
         """Test shape of model output, transposed"""
@@ -65,7 +65,7 @@ class TestDNCMethods(unittest.TestCase):
         model = Model(inputs=inputs, outputs=outputs)
         true = (None, 128, 128, 4)
         calc = model.output_shape
-        assert true == calc
+        self.assertEqual(true, calc)
 
     def test_train_transpose(self):
         """Train using Conv2DTranspose"""
