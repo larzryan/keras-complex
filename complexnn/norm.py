@@ -181,7 +181,7 @@ class ComplexLayerNorm(Layer):
 
         self.built = True
 
-    def call(self, inputs):
+    def call(self, inputs, **kwargs):
         input_shape = K.shape(inputs)
         ndim = K.ndim(inputs)
         reduction_axes = list(range(ndim))

@@ -12,6 +12,8 @@ from tensorflow.keras import activations, initializers, regularizers, constraint
 from tensorflow.keras.layers import Layer, InputSpec
 import numpy as np
 from numpy.random import RandomState
+from .utils import _compute_fans
+
 
 class ComplexDense(Layer):
     """Regular complex densely-connected NN layer.
@@ -101,7 +103,7 @@ class ComplexDense(Layer):
         input_dim = input_shape[-1] // 2
         data_format = K.image_data_format()
         kernel_shape = (input_dim, self.units)
-        fan_in, fan_out = initializers._compute_fans(
+        fan_in, fan_out = _compute_fans(
             kernel_shape,
             data_format=data_format
         )
@@ -125,13 +127,13 @@ class ComplexDense(Layer):
                 size=kernel_shape,
                 loc=0,
                 scale=s,
-            ).astype(dtype)
+            )  #.astype(dtype)
         def init_w_imag(shape, dtype=None):
             return rng.normal(
                 size=kernel_shape,
                 loc=0,
                 scale=s
-            ).astype(dtype)
+            )  #.astype(dtype)
         if self.kernel_initializer in {'complex'}:
             real_init = init_w_real
             imag_init = init_w_imag
@@ -168,7 +170,7 @@ class ComplexDense(Layer):
         self.input_spec = InputSpec(ndim=2, axes={-1: 2 * input_dim})
         self.built = True
 
-    def call(self, inputs):
+    def call(self, inputs, **kwargs):
         input_shape = K.shape(inputs)
         input_dim = input_shape[-1] // 2
         real_input = inputs[:, :input_dim]
