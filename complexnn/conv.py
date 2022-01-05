@@ -6,15 +6,20 @@
 #
 # Authors: Chiheb Trabelsi
 
+import keras
 from keras import backend as K
 from keras import activations, initializers, regularizers, constraints
 from keras.layers import (
     Layer,
     InputSpec,
 )
-from keras.layers.convolutional import _Conv
+if keras.__version__ >= '2.4.0':
+    from keras.layers.convolutional import Conv as _Conv
+    from keras.utils.conv_utils import normalize_data_format
+else:
+    from keras.layers.convolutional import _Conv
+    from keras.backend.common import normalize_data_format
 from keras.utils import conv_utils
-from keras.backend.common import normalize_data_format
 import numpy as np
 from .fft import fft, ifft, fft2, ifft2
 from .bn import ComplexBN as complex_normalization
@@ -86,7 +91,7 @@ def conv_transpose_output_length(
         stride,  # stride_size
         filter_size,  # kernel_size
         padding,  # padding
-        output_padding, # output_padding
+        output_padding,  # output_padding
     )
 
 
@@ -271,7 +276,8 @@ class ComplexConv(Layer):
                 "The channel dimension of the inputs "
                 "should be defined. Found `None`."
             )
-        input_dim = input_shape[channel_axis] // 2 # Divide by 2 for real and complex input.
+        # Divide by 2 for real and complex input.
+        input_dim = input_shape[channel_axis] // 2
         if False and self.transposed:
             self.kernel_shape = self.kernel_size + (self.filters, input_dim)
         else:

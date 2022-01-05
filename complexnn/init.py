@@ -4,11 +4,16 @@
 #
 # Authors: Chiheb Trabelsi
 
+import keras
 import numpy as np
 from numpy.random import RandomState
 import keras.backend as K
 from keras import initializers
 from keras.initializers import Initializer
+if keras.__version__ >= '2.4.0':
+    from tensorflow.python.ops.init_ops import _compute_fans
+else:
+    from keras.initializers import _compute_fans
 from keras.utils.generic_utils import (serialize_keras_object,
                                        deserialize_keras_object)
 
@@ -57,8 +62,9 @@ class IndependentFilters(Initializer):
         u, _, v = np.linalg.svd(x)
         orthogonal_x = np.dot(u, np.dot(np.eye(num_rows, num_cols), v.T))
         if self.nb_filters is not None:
-            independent_filters = np.reshape(orthogonal_x, (num_rows,) + tuple(self.kernel_size))
-            fan_in, fan_out = initializers._compute_fans(
+            independent_filters = np.reshape(
+                orthogonal_x, (num_rows,) + tuple(self.kernel_size))
+            fan_in, fan_out = _compute_fans(
                 tuple(self.kernel_size) + (self.input_dim, self.nb_filters)
             )
         else:
@@ -72,14 +78,15 @@ class IndependentFilters(Initializer):
         else:
             raise ValueError('Invalid criterion: ' + self.criterion)
 
-        multip_constant = np.sqrt (desired_var / np.var(independent_filters))
+        multip_constant = np.sqrt(desired_var / np.var(independent_filters))
         scaled_indep = multip_constant * independent_filters
 
         if self.weight_dim == 2 and self.nb_filters is None:
             weight_real = scaled_real
             weight_imag = scaled_imag
         else:
-            kernel_shape = tuple(self.kernel_size) + (self.input_dim, self.nb_filters)
+            kernel_shape = tuple(self.kernel_size) + \
+                (self.input_dim, self.nb_filters)
             if self.weight_dim == 1:
                 transpose_shape = (1, 0)
             elif self.weight_dim == 2 and self.nb_filters is not None:
@@ -144,14 +151,18 @@ class ComplexIndependentFilters(Initializer):
         i = rng.uniform(size=flat_shape)
         z = r + 1j * i
         u, _, v = np.linalg.svd(z)
-        unitary_z = np.dot(u, np.dot(np.eye(int(num_rows), int(num_cols)), np.conjugate(v).T))
+        unitary_z = np.dot(
+            u, np.dot(np.eye(int(num_rows), int(num_cols)), np.conjugate(v).T))
         real_unitary = unitary_z.real
         imag_unitary = unitary_z.imag
         if self.nb_filters is not None:
-            indep_real = np.reshape(real_unitary, (num_rows,) + tuple(self.kernel_size))
-            indep_imag = np.reshape(imag_unitary, (num_rows,) + tuple(self.kernel_size))
-            fan_in, fan_out = initializers._compute_fans(
-                tuple(self.kernel_size) + (int(self.input_dim), self.nb_filters)
+            indep_real = np.reshape(
+                real_unitary, (num_rows,) + tuple(self.kernel_size))
+            indep_imag = np.reshape(
+                imag_unitary, (num_rows,) + tuple(self.kernel_size))
+            fan_in, fan_out = _compute_fans(
+                tuple(self.kernel_size) +
+                (int(self.input_dim), self.nb_filters)
             )
         else:
             indep_real = real_unitary
@@ -174,7 +185,8 @@ class ComplexIndependentFilters(Initializer):
             weight_real = scaled_real
             weight_imag = scaled_imag
         else:
-            kernel_shape = tuple(self.kernel_size) + (int(self.input_dim), self.nb_filters)
+            kernel_shape = tuple(self.kernel_size) + \
+                (int(self.input_dim), self.nb_filters)
             if self.weight_dim == 1:
                 transpose_shape = (1, 0)
             elif self.weight_dim == 2 and self.nb_filters is not None:
@@ -234,7 +246,7 @@ class ComplexInit(Initializer):
         else:
             kernel_shape = (int(self.input_dim), self.kernel_size[-1])
 
-        fan_in, fan_out = initializers._compute_fans(
+        fan_in, fan_out = _compute_fans(
             # tuple(self.kernel_size) + (self.input_dim, self.nb_filters)
             kernel_shape
         )
