@@ -5,24 +5,14 @@
 # Authors: Chiheb Trabelsi
 #
 
+from tensorflow.keras import backend as K
+import sys; sys.path.append('.')
+from tensorflow.keras import backend as K
+from tensorflow.keras import activations, initializers, regularizers, constraints
+from tensorflow.keras.layers import Layer, InputSpec
 import numpy as np
 from numpy.random import RandomState
-import numpy as np
-from keras.layers import Layer, InputSpec
-from keras import activations, initializers, regularizers, constraints
-import keras
-from keras import backend as K
-import sys
-sys.path.append('.')
-if keras.__version__ >= '2.4.0':
-    from tensorflow.python.ops.init_ops import _compute_fans as compute_fans
-else:
-    from keras.initializers import _compute_fans
-
-    def compute_fans(x): return _compute_fans(
-        x,
-        data_format=K.image_data_format()
-    )
+from .utils import _compute_fans
 
 
 class ComplexDense(Layer):
@@ -111,9 +101,11 @@ class ComplexDense(Layer):
         assert len(input_shape) == 2
         assert input_shape[-1] % 2 == 0
         input_dim = input_shape[-1] // 2
+        data_format = K.image_data_format()
         kernel_shape = (input_dim, self.units)
-        fan_in, fan_out = compute_fans(
-            kernel_shape
+        fan_in, fan_out = _compute_fans(
+            kernel_shape,
+            data_format=data_format
         )
         if self.init_criterion == 'he':
             s = np.sqrt(1. / fan_in)
@@ -130,17 +122,21 @@ class ComplexDense(Layer):
             return modulus * K.sin(phase)"""
 
         # Initialization using euclidean representation:
-        def init_w(shape, dtype=None):
-            rnd = rng.normal(
+        def init_w_real(shape, dtype=None):
+            return rng.normal(
                 size=kernel_shape,
                 loc=0,
                 scale=s,
-            ).astype(np.dtype(dtype.name))
-            return rnd
-
+            )  #.astype(dtype)
+        def init_w_imag(shape, dtype=None):
+            return rng.normal(
+                size=kernel_shape,
+                loc=0,
+                scale=s
+            )  #.astype(dtype)
         if self.kernel_initializer in {'complex'}:
-            real_init = init_w
-            imag_init = init_w
+            real_init = init_w_real
+            imag_init = init_w_imag
         else:
             real_init = self.kernel_initializer
             imag_init = self.kernel_initializer
@@ -159,7 +155,7 @@ class ComplexDense(Layer):
             regularizer=self.kernel_regularizer,
             constraint=self.kernel_constraint
         )
-
+        
         if self.use_bias:
             self.bias = self.add_weight(
                 shape=(2 * self.units,),
@@ -174,12 +170,12 @@ class ComplexDense(Layer):
         self.input_spec = InputSpec(ndim=2, axes={-1: 2 * input_dim})
         self.built = True
 
-    def call(self, inputs):
+    def call(self, inputs, **kwargs):
         input_shape = K.shape(inputs)
         input_dim = input_shape[-1] // 2
         real_input = inputs[:, :input_dim]
         imag_input = inputs[:, input_dim:]
-
+        
         cat_kernels_4_real = K.concatenate(
             [self.real_kernel, -self.imag_kernel],
             axis=-1
@@ -230,3 +226,4 @@ class ComplexDense(Layer):
         }
         base_config = super(ComplexDense, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+

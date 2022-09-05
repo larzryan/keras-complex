@@ -6,20 +6,14 @@
 #
 # Authors: Chiheb Trabelsi
 
-import keras
-from keras import backend as K
-from keras import activations, initializers, regularizers, constraints
-from keras.layers import (
+from tensorflow.keras import backend as K
+from tensorflow.keras import activations, initializers, regularizers, constraints
+from tensorflow.keras.layers import (
     Layer,
     InputSpec,
 )
-if keras.__version__ >= '2.4.0':
-    from keras.layers.convolutional import Conv as _Conv
-    from keras.utils.conv_utils import normalize_data_format
-else:
-    from keras.layers.convolutional import _Conv
-    from keras.backend.common import normalize_data_format
-from keras.utils import conv_utils
+from tensorflow.python.keras.layers.convolutional import Conv
+from tensorflow.python.keras.utils import conv_utils
 import numpy as np
 from .fft import fft, ifft, fft2, ifft2
 from .bn import ComplexBN as complex_normalization
@@ -40,7 +34,7 @@ def conv2d_transpose(
 
     Take a filter defined for forward convolution and adjusts it for a
     transposed convolution."""
-    input_shape = K.shape(inputs)
+    input_shape = inputs.shape
     batch_size = input_shape[0]
     if data_format == 'channels_first':
         h_axis, w_axis = 2, 3
@@ -52,12 +46,9 @@ def conv2d_transpose(
     stride_h, stride_w = strides
 
     # Infer the dynamic output shape:
-    out_height = conv_utils.deconv_length(height,
-                                          stride_h, kernel_h,
-                                          padding, output_padding)
-    out_width = conv_utils.deconv_length(width,
-                                         stride_w, kernel_w,
-                                         padding, output_padding)
+    out_height = conv_utils.deconv_output_length(input_length=height, filter_size=kernel_h, padding=padding, output_padding=output_padding, stride=stride_h)
+    out_width = conv_utils.deconv_output_length(input_length=width, filter_size=kernel_w, padding=padding, output_padding=output_padding, stride=stride_w)
+
     if data_format == 'channels_first':
         output_shape = (batch_size, filters, out_height, out_width)
     else:
@@ -86,13 +77,15 @@ def conv_transpose_output_length(
         msg = f"Dilation must be 1 for transposed convolution. "
         msg += f"Got dilation = {dilation}"
         raise ValueError(msg)
-    return conv_utils.deconv_length(
-        input_length,  # dim_size
-        stride,  # stride_size
-        filter_size,  # kernel_size
-        padding,  # padding
-        output_padding,  # output_padding
-    )
+    # return conv_utils.deconv_length(
+    #     input_length,  # dim_size
+    #     stride,  # stride_size
+    #     filter_size,  # kernel_size
+    #     padding,  # padding
+    #     output_padding, # output_padding
+    # )
+    return conv_utils.deconv_output_length(input_length, filter_size, padding,
+                                           output_padding=output_padding, stride=stride, dilation=dilation)
 
 
 def sanitizedInitGet(init):
@@ -227,7 +220,7 @@ class ComplexConv(Layer):
         self.strides = conv_utils.normalize_tuple(strides, rank, "strides")
         self.padding = conv_utils.normalize_padding(padding)
         self.data_format = "channels_last" \
-            if rank == 1 else normalize_data_format(data_format)
+            if rank == 1 else conv_utils.normalize_data_format(data_format)
         self.dilation_rate = conv_utils.normalize_tuple(
             dilation_rate, rank, "dilation_rate"
         )
@@ -276,8 +269,7 @@ class ComplexConv(Layer):
                 "The channel dimension of the inputs "
                 "should be defined. Found `None`."
             )
-        # Divide by 2 for real and complex input.
-        input_dim = input_shape[channel_axis] // 2
+        input_dim = input_shape[channel_axis] // 2 # Divide by 2 for real and complex input.
         if False and self.transposed:
             self.kernel_shape = self.kernel_size + (self.filters, input_dim)
         else:
@@ -305,9 +297,13 @@ class ComplexConv(Layer):
         else:
             kern_init = self.kernel_initializer
 
+        # Fix for 'ValueError: The initial value's shape ((3, 3, 1, 8)) is not compatible with the explicitly supplied `shape` argument'
+        actual_kernel_shape = list(self.kernel_shape)
+        actual_kernel_shape[-1] *= 2
+
         self.kernel = self.add_weight(
             "kernel",
-            self.kernel_shape,
+            shape=tuple(actual_kernel_shape),
             initializer=kern_init,
             regularizer=self.kernel_regularizer,
             constraint=self.kernel_constraint,
@@ -1022,7 +1018,7 @@ class ComplexConv3D(ComplexConv):
         return config
 
 
-class WeightNorm_Conv(_Conv):
+class WeightNorm_Conv(Conv):
     """WeightNorm_Conv"""
     # Real-valued Convolutional Layer that normalizes its weights
     # before convolving the input.

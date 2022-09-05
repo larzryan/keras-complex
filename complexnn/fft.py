@@ -5,10 +5,10 @@
 # Authors: Olexa Bilaniuk
 #
 
-import keras.backend                        as KB
-import keras.engine                         as KE
-import keras.layers                         as KL
-import keras.optimizers                     as KO
+import tensorflow.keras.backend                        as KB
+#import tensorflow.keras.engine                         as KE
+import tensorflow.keras.layers                         as KL
+import tensorflow.keras.optimizers                     as KO
 import tensorflow                           as tf
 import numpy                                as np
 
