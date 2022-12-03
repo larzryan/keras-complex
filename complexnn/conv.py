@@ -6,6 +6,7 @@
 #
 # Authors: Chiheb Trabelsi
 
+import tensorflow as tf
 from tensorflow.keras import backend as K
 from tensorflow.keras import activations, initializers, regularizers, constraints
 from tensorflow.keras.layers import (
@@ -13,7 +14,6 @@ from tensorflow.keras.layers import (
     InputSpec,
 )
 from tensorflow.python.keras.layers.convolutional import Conv
-from tensorflow.python.ops.nn_ops import conv1d_transpose
 from tensorflow.python.keras.utils import conv_utils
 import numpy as np
 from .fft import fft, ifft, fft2, ifft2
@@ -26,7 +26,8 @@ def conv1d_transpose(
     inputs,
     filter,  # pylint: disable=redefined-builtin
     kernel_size=None,
-    strides=(1, 1),
+    filters=None,
+    strides=(1,),
     padding="SAME",
     output_padding=None,
     data_format="channels_last",
@@ -35,42 +36,41 @@ def conv1d_transpose(
 
     Take a filter defined for forward convolution and adjusts it for a
     transposed convolution."""
+    if isinstance(kernel_size, tuple):
+        kernel_size = kernel_size[0]
     input_shape = inputs.shape
     batch_size = input_shape[0]
     if data_format == "channels_first":
-        h_axis, w_axis = 2, 1
+        w_axis = 2
         d_format = "NCW"
     else:
-        h_axis, w_axis = 1, 2
+        w_axis = 1
         d_format = "NWC"
 
-    height, width = input_shape[h_axis], input_shape[w_axis]
-    kernel_h, kernel_w = kernel_size
-    stride_h, stride_w = strides
+    width = input_shape[w_axis]
 
     # Infer the dynamic output shape:
-    out_height = conv_utils.deconv_output_length(
-        input_length=height,
-        filter_size=kernel_h,
-        padding=padding,
-        output_padding=output_padding,
-        stride=stride_h,
-    )
     out_width = conv_utils.deconv_output_length(
         input_length=width,
-        filter_size=kernel_w,
+        filter_size=kernel_size,
         padding=padding,
         output_padding=output_padding,
-        stride=stride_w,
+        stride=strides,
     )
 
     if data_format == "channels_first":
-        output_shape = (batch_size, out_height, out_width)
+        output_shape = (batch_size, filters, out_width)
     else:
-        output_shape = (batch_size, out_height, out_width)
+        output_shape = (batch_size, out_width, filters)
 
-    return conv1d_transpose(
-        inputs, filter, output_shape, strides, padding=padding, data_format=d_format
+    filter = K.permute_dimensions(filter, (0, 2, 1))
+    return tf.nn.conv1d_transpose(
+        inputs,
+        filter,
+        output_shape,
+        strides,
+        padding=padding.upper(),
+        data_format=d_format,
     )
 
 
