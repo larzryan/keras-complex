@@ -43,7 +43,8 @@ Usage
 -----
 Build your neural networks with the help of keras. 
 
-```python
+``` 
+
 import complexnn
 
 import keras
@@ -62,6 +63,24 @@ model.compile(optimizer=optimizers.Adam(), loss='mse')
 ```
 
 An example working implementation of an autoencoder can be found [here](https://github.com/JesperDramsch/Complex-CNN-Seismic/).
+
+Complex Format of Tensors
+-------------------------
+
+This library assumes that complex values are split into two real-valued parts. The real-valued and complex-valued complement, also seen [in the Docs](https://keras-complex.readthedocs.io/math.html).
+
+The tensors for a 2D complex tensor of 3x3, the look like:
+
+```
+[[[r r r],
+  [r r r],
+  [r r r]],
+  [i,i,i],
+  [i,i,i],
+  [i,i,i]]]
+```
+
+So multiple samples should then be arranged into `[r,r,r,i,i,i]`, which is also documented [in the Docs](https://keras-complex.readthedocs.io/math.html#implementation).
 
 Citation
 --------
