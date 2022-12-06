@@ -10,7 +10,6 @@ maintainers = [
     {name = "Jesper Dramsch", email = "jesper@dramsch.net"}
 ]
 description = "Complex values in Keras"
-long_description_content_type = "text/markdown"
 requires-python = ">=3.8"
 keywords = ["Machine Learning", "Deep Learning", "Complex Numbers", "Keras", "TensorFlow"]
 license = {file = "LICENSE.md"}
