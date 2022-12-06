@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import keras
 import numpy as np
 from numpy.random import RandomState
 import tensorflow.keras.backend as K
