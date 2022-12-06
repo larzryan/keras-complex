@@ -16,9 +16,8 @@ setup(
     packages=find_packages(),
     scripts=['scripts/run.py', 'scripts/training.py'],
     install_requires=[
-        "numpy", "scipy", "sklearn", "keras"],
+        "tensorflow >= 2.0.0", "numpy", "scipy", "scikit-learn", "keras"],
     extras_require={
-        "tf": ["tensorflow"],
         "tf_gpu": ["tensorflow-gpu"],
     },
     classifiers=[
