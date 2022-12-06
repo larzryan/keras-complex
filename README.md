@@ -17,7 +17,7 @@ Requirements
 Install requirements for computer vision experiments with pip:
 
 ```
-pip install -f requirements.txt
+pip install -r requirements.txt
 ```
 
 Depending on your Python installation you might want to use anaconda or venv or other tools.
