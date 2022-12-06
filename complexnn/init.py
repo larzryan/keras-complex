@@ -4,6 +4,7 @@
 #
 # Authors: Chiheb Trabelsi
 
+import keras
 import numpy as np
 from numpy.random import RandomState
 import tensorflow.keras.backend as K
@@ -71,14 +72,15 @@ class IndependentFilters(Initializer):
         else:
             raise ValueError('Invalid criterion: ' + self.criterion)
 
-        multip_constant = np.sqrt (desired_var / np.var(independent_filters))
+        multip_constant = np.sqrt(desired_var / np.var(independent_filters))
         scaled_indep = multip_constant * independent_filters
 
         if self.weight_dim == 2 and self.nb_filters is None:
             weight_real = scaled_real
             weight_imag = scaled_imag
         else:
-            kernel_shape = tuple(self.kernel_size) + (self.input_dim, self.nb_filters)
+            kernel_shape = tuple(self.kernel_size) + \
+                (self.input_dim, self.nb_filters)
             if self.weight_dim == 1:
                 transpose_shape = (1, 0)
             elif self.weight_dim == 2 and self.nb_filters is not None:
@@ -143,7 +145,8 @@ class ComplexIndependentFilters(Initializer):
         i = rng.uniform(size=flat_shape)
         z = r + 1j * i
         u, _, v = np.linalg.svd(z)
-        unitary_z = np.dot(u, np.dot(np.eye(int(num_rows), int(num_cols)), np.conjugate(v).T))
+        unitary_z = np.dot(
+            u, np.dot(np.eye(int(num_rows), int(num_cols)), np.conjugate(v).T))
         real_unitary = unitary_z.real
         imag_unitary = unitary_z.imag
         if self.nb_filters is not None:
@@ -173,7 +176,8 @@ class ComplexIndependentFilters(Initializer):
             weight_real = scaled_real
             weight_imag = scaled_imag
         else:
-            kernel_shape = tuple(self.kernel_size) + (int(self.input_dim), self.nb_filters)
+            kernel_shape = tuple(self.kernel_size) + \
+                (int(self.input_dim), self.nb_filters)
             if self.weight_dim == 1:
                 transpose_shape = (1, 0)
             elif self.weight_dim == 2 and self.nb_filters is not None:

@@ -34,4 +34,10 @@
 **/*.yaml
 **/*.npy
 **/slurm-*.out
-DeepComplexNetworks.egg-info/
+keras_complex.egg-info/
+build/
+
+.venv
+venv
+
+.vscode

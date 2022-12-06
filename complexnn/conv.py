@@ -6,6 +6,7 @@
 #
 # Authors: Chiheb Trabelsi
 
+import tensorflow as tf
 from tensorflow.keras import backend as K
 from tensorflow.keras import activations, initializers, regularizers, constraints
 from tensorflow.keras.layers import (
@@ -21,22 +22,75 @@ from .bn import sqrt_init
 from .init import ComplexInit, ComplexIndependentFilters
 
 
-def conv2d_transpose(
+def conv1d_transpose(
+    inputs,
+    filter,  # pylint: disable=redefined-builtin
+    kernel_size=None,
+    filters=None,
+    strides=(1,),
+    padding="SAME",
+    output_padding=None,
+    data_format="channels_last",
+):
+    """Compatibility layer for nn.conv1d_transpose
+
+    Take a filter defined for forward convolution and adjusts it for a
+    transposed convolution."""
+    if isinstance(kernel_size, tuple):
+        kernel_size = kernel_size[0]
+    input_shape = inputs.shape
+    batch_size = input_shape[0]
+    if data_format == "channels_first":
+        w_axis = 2
+        d_format = "NCW"
+    else:
+        w_axis = 1
+        d_format = "NWC"
+
+    width = input_shape[w_axis]
+
+    # Infer the dynamic output shape:
+    out_width = conv_utils.deconv_output_length(
+        input_length=width,
+        filter_size=kernel_size,
+        padding=padding,
+        output_padding=output_padding,
+        stride=strides,
+    )
+
+    if data_format == "channels_first":
+        output_shape = (batch_size, filters, out_width)
+    else:
+        output_shape = (batch_size, out_width, filters)
+
+    filter = K.permute_dimensions(filter, (0, 2, 1))
+    return tf.nn.conv1d_transpose(
         inputs,
-        filter,  # pylint: disable=redefined-builtin
-        kernel_size=None,
-        filters=None,
-        strides=(1, 1),
-        padding="SAME",
-        output_padding=None,
-        data_format="channels_last"):
+        filter,
+        output_shape,
+        strides,
+        padding=padding.upper(),
+        data_format=d_format,
+    )
+
+
+def conv2d_transpose(
+    inputs,
+    filter,  # pylint: disable=redefined-builtin
+    kernel_size=None,
+    filters=None,
+    strides=(1, 1),
+    padding="SAME",
+    output_padding=None,
+    data_format="channels_last",
+):
     """Compatibility layer for K.conv2d_transpose
 
     Take a filter defined for forward convolution and adjusts it for a
     transposed convolution."""
     input_shape = inputs.shape
     batch_size = input_shape[0]
-    if data_format == 'channels_first':
+    if data_format == "channels_first":
         h_axis, w_axis = 2, 3
     else:
         h_axis, w_axis = 1, 2
@@ -46,18 +100,30 @@ def conv2d_transpose(
     stride_h, stride_w = strides
 
     # Infer the dynamic output shape:
-    out_height = conv_utils.deconv_output_length(input_length=height, filter_size=kernel_h, padding=padding, output_padding=output_padding, stride=stride_h)
-    out_width = conv_utils.deconv_output_length(input_length=width, filter_size=kernel_w, padding=padding, output_padding=output_padding, stride=stride_w)
+    out_height = conv_utils.deconv_output_length(
+        input_length=height,
+        filter_size=kernel_h,
+        padding=padding,
+        output_padding=output_padding,
+        stride=stride_h,
+    )
+    out_width = conv_utils.deconv_output_length(
+        input_length=width,
+        filter_size=kernel_w,
+        padding=padding,
+        output_padding=output_padding,
+        stride=stride_w,
+    )
 
-    if data_format == 'channels_first':
+    if data_format == "channels_first":
         output_shape = (batch_size, filters, out_height, out_width)
     else:
         output_shape = (batch_size, out_height, out_width, filters)
 
     filter = K.permute_dimensions(filter, (0, 1, 3, 2))
-    return K.conv2d_transpose(inputs, filter, output_shape, strides,
-                              padding=padding,
-                              data_format=data_format)
+    return K.conv2d_transpose(
+        inputs, filter, output_shape, strides, padding=padding, data_format=data_format
+    )
 
 
 def ifft(f):
@@ -71,7 +137,8 @@ def ifft2(f):
 
 
 def conv_transpose_output_length(
-        input_length, filter_size, padding, stride, dilation=1, output_padding=None):
+    input_length, filter_size, padding, stride, dilation=1, output_padding=None
+):
     """Rearrange arguments for compatibility with conv_output_length."""
     if dilation != 1:
         msg = f"Dilation must be 1 for transposed convolution. "
@@ -84,17 +151,21 @@ def conv_transpose_output_length(
     #     padding,  # padding
     #     output_padding, # output_padding
     # )
-    return conv_utils.deconv_output_length(input_length, filter_size, padding,
-                                           output_padding=output_padding, stride=stride, dilation=dilation)
+    return conv_utils.deconv_output_length(
+        input_length,
+        filter_size,
+        padding,
+        output_padding=output_padding,
+        stride=stride,
+        dilation=dilation,
+    )
 
 
 def sanitizedInitGet(init):
     """sanitizedInitGet"""
     if init in ["sqrt_init"]:
         return sqrt_init
-    elif init in [
-            "complex", "complex_independent", "glorot_complex", "he_complex"
-    ]:
+    elif init in ["complex", "complex_independent", "glorot_complex", "he_complex"]:
         return init
     else:
         return initializers.get(init)
@@ -106,9 +177,7 @@ def sanitizedInitSer(init):
         return "sqrt_init"
     elif init == "complex" or isinstance(init, ComplexInit):
         return "complex"
-    elif init == "complex_independent" or isinstance(
-            init, ComplexIndependentFilters
-    ):
+    elif init == "complex_independent" or isinstance(init, ComplexIndependentFilters):
         return "complex_independent"
     else:
         return initializers.serialize(init)
@@ -181,46 +250,48 @@ class ComplexConv(Layer):
     """
 
     def __init__(
-            self,
-            rank,
-            filters,
-            kernel_size,
-            strides=1,
-            padding="valid",
-            data_format=None,
-            dilation_rate=1,
-            activation=None,
-            use_bias=True,
-            normalize_weight=False,
-            kernel_initializer="complex",
-            bias_initializer="zeros",
-            gamma_diag_initializer=sqrt_init,
-            gamma_off_initializer="zeros",
-            kernel_regularizer=None,
-            bias_regularizer=None,
-            gamma_diag_regularizer=None,
-            gamma_off_regularizer=None,
-            activity_regularizer=None,
-            kernel_constraint=None,
-            bias_constraint=None,
-            gamma_diag_constraint=None,
-            gamma_off_constraint=None,
-            init_criterion="he",
-            seed=None,
-            spectral_parametrization=False,
-            transposed=False,
-            epsilon=1e-7,
-            **kwargs):
+        self,
+        rank,
+        filters,
+        kernel_size,
+        strides=1,
+        padding="valid",
+        data_format=None,
+        dilation_rate=1,
+        activation=None,
+        use_bias=True,
+        normalize_weight=False,
+        kernel_initializer="complex",
+        bias_initializer="zeros",
+        gamma_diag_initializer=sqrt_init,
+        gamma_off_initializer="zeros",
+        kernel_regularizer=None,
+        bias_regularizer=None,
+        gamma_diag_regularizer=None,
+        gamma_off_regularizer=None,
+        activity_regularizer=None,
+        kernel_constraint=None,
+        bias_constraint=None,
+        gamma_diag_constraint=None,
+        gamma_off_constraint=None,
+        init_criterion="he",
+        seed=None,
+        spectral_parametrization=False,
+        transposed=False,
+        epsilon=1e-7,
+        **kwargs,
+    ):
         super(ComplexConv, self).__init__(**kwargs)
         self.rank = rank
         self.filters = filters
-        self.kernel_size = conv_utils.normalize_tuple(
-            kernel_size, rank, "kernel_size"
-        )
+        self.kernel_size = conv_utils.normalize_tuple(kernel_size, rank, "kernel_size")
         self.strides = conv_utils.normalize_tuple(strides, rank, "strides")
         self.padding = conv_utils.normalize_padding(padding)
-        self.data_format = "channels_last" \
-            if rank == 1 else conv_utils.normalize_data_format(data_format)
+        self.data_format = (
+            "channels_last"
+            if rank == 1
+            else conv_utils.normalize_data_format(data_format)
+        )
         self.dilation_rate = conv_utils.normalize_tuple(
             dilation_rate, rank, "dilation_rate"
         )
@@ -269,7 +340,8 @@ class ComplexConv(Layer):
                 "The channel dimension of the inputs "
                 "should be defined. Found `None`."
             )
-        input_dim = input_shape[channel_axis] // 2 # Divide by 2 for real and complex input.
+        # Divide by 2 for real and complex input.
+        input_dim = input_shape[channel_axis] // 2
         if False and self.transposed:
             self.kernel_shape = self.kernel_size + (self.filters, input_dim)
         else:
@@ -284,9 +356,7 @@ class ComplexConv(Layer):
             kls = {
                 "complex": ComplexInit,
                 "complex_independent": ComplexIndependentFilters,
-            }[
-                self.kernel_initializer
-            ]
+            }[self.kernel_initializer]
             kern_init = kls(
                 kernel_size=self.kernel_size,
                 input_dim=input_dim,
@@ -364,40 +434,38 @@ class ComplexConv(Layer):
         input_dim = K.shape(inputs)[channel_axis] // 2
         if False and self.transposed:
             if self.rank == 1:
-                f_real = self.kernel[:, :self.filters, :]
-                f_imag = self.kernel[:, self.filters:, :]
+                f_real = self.kernel[:, : self.filters, :]
+                f_imag = self.kernel[:, self.filters :, :]
             elif self.rank == 2:
-                f_real = self.kernel[:, :, :self.filters, :]
-                f_imag = self.kernel[:, :, self.filters:, :]
+                f_real = self.kernel[:, :, : self.filters, :]
+                f_imag = self.kernel[:, :, self.filters :, :]
             elif self.rank == 3:
-                f_real = self.kernel[:, :, :, :self.filters, :]
-                f_imag = self.kernel[:, :, :, self.filters:, :]
+                f_real = self.kernel[:, :, :, : self.filters, :]
+                f_imag = self.kernel[:, :, :, self.filters :, :]
         else:
             if self.rank == 1:
-                f_real = self.kernel[:, :, :self.filters]
-                f_imag = self.kernel[:, :, self.filters:]
+                f_real = self.kernel[:, :, : self.filters]
+                f_imag = self.kernel[:, :, self.filters :]
             elif self.rank == 2:
-                f_real = self.kernel[:, :, :, :self.filters]
-                f_imag = self.kernel[:, :, :, self.filters:]
+                f_real = self.kernel[:, :, :, : self.filters]
+                f_imag = self.kernel[:, :, :, self.filters :]
             elif self.rank == 3:
-                f_real = self.kernel[:, :, :, :, :self.filters]
-                f_imag = self.kernel[:, :, :, :, self.filters:]
+                f_real = self.kernel[:, :, :, :, : self.filters]
+                f_imag = self.kernel[:, :, :, :, self.filters :]
 
         convArgs = {
             "strides": self.strides[0] if self.rank == 1 else self.strides,
             "padding": self.padding,
             "data_format": self.data_format,
-            "dilation_rate":
-                self.dilation_rate[0]
-                if self.rank == 1
-                else self.dilation_rate,
+            "dilation_rate": self.dilation_rate[0]
+            if self.rank == 1
+            else self.dilation_rate,
         }
         if self.transposed:
             convArgs.pop("dilation_rate", None)
             convArgs["kernel_size"] = self.kernel_size
             convArgs["filters"] = 2 * self.filters
-            convFunc = {
-                2: conv2d_transpose}[self.rank]
+            convFunc = {1: conv1d_transpose, 2: conv2d_transpose}[self.rank]
         else:
             convFunc = {1: K.conv1d, 2: K.conv2d, 3: K.conv3d}[self.rank]
 
@@ -413,8 +481,8 @@ class ComplexConv(Layer):
                 f = K.reshape(f, (fshape[0] * fshape[1], fshape[2]))
                 f = ifft(f)
                 f = K.reshape(f, fshape)
-                f_real = f[:fshape[0] // 2]
-                f_imag = f[fshape[0] // 2:]
+                f_real = f[: fshape[0] // 2]
+                f_imag = f[fshape[0] // 2 :]
                 f_real = K.permute_dimensions(f_real, (2, 1, 0))
                 f_imag = K.permute_dimensions(f_imag, (2, 1, 0))
             elif self.rank == 2:
@@ -425,8 +493,8 @@ class ComplexConv(Layer):
                 f = K.reshape(f, (fshape[0] * fshape[1], fshape[2], fshape[3]))
                 f = ifft2(f)
                 f = K.reshape(f, fshape)
-                f_real = f[:fshape[0] // 2]
-                f_imag = f[fshape[0] // 2:]
+                f_real = f[: fshape[0] // 2]
+                f_imag = f[fshape[0] // 2 :]
                 f_real = K.permute_dimensions(f_real, (2, 3, 1, 0))
                 f_imag = K.permute_dimensions(f_imag, (2, 3, 1, 0))
 
@@ -450,16 +518,19 @@ class ComplexConv(Layer):
             broadcast_mu_imag = K.reshape(mu_imag, broadcast_mu_shape)
             reshaped_f_real_centred = reshaped_f_real - broadcast_mu_real
             reshaped_f_imag_centred = reshaped_f_imag - broadcast_mu_imag
-            Vrr = K.mean(
-                reshaped_f_real_centred ** 2, axis=reduction_axes
-            ) + self.epsilon
-            Vii = K.mean(
-                reshaped_f_imag_centred ** 2, axis=reduction_axes
-            ) + self.epsilon
-            Vri = K.mean(
-                reshaped_f_real_centred * reshaped_f_imag_centred,
-                axis=reduction_axes,
-            ) + self.epsilon
+            Vrr = (
+                K.mean(reshaped_f_real_centred**2, axis=reduction_axes) + self.epsilon
+            )
+            Vii = (
+                K.mean(reshaped_f_imag_centred**2, axis=reduction_axes) + self.epsilon
+            )
+            Vri = (
+                K.mean(
+                    reshaped_f_real_centred * reshaped_f_imag_centred,
+                    axis=reduction_axes,
+                )
+                + self.epsilon
+            )
 
             normalized_weight = complex_normalization(
                 K.concatenate([reshaped_f_real, reshaped_f_imag], axis=-1),
@@ -491,17 +562,20 @@ class ComplexConv(Layer):
             [cat_kernels_4_real, cat_kernels_4_imag], axis=-1
         )
         if False and self.transposed:
-            cat_kernels_4_complex._keras_shape = \
-                self.kernel_size + (2 * self.filters, 2 * input_dim)
+            cat_kernels_4_complex._keras_shape = self.kernel_size + (
+                2 * self.filters,
+                2 * input_dim,
+            )
         else:
-            cat_kernels_4_complex._keras_shape = \
-                self.kernel_size + 2 * input_dim, 2 * self.filters
+            cat_kernels_4_complex._keras_shape = (
+                self.kernel_size + 2 * input_dim,
+                2 * self.filters,
+            )
 
         output = convFunc(inputs, cat_kernels_4_complex, **convArgs)
 
         if self.use_bias:
-            output = K.bias_add(
-                output, self.bias, data_format=self.data_format)
+            output = K.bias_add(output, self.bias, data_format=self.data_format)
 
         if self.activation is not None:
             output = self.activation(output)
@@ -554,33 +628,19 @@ class ComplexConv(Layer):
             "normalize_weight": self.normalize_weight,
             "kernel_initializer": sanitizedInitSer(self.kernel_initializer),
             "bias_initializer": sanitizedInitSer(self.bias_initializer),
-            "gamma_diag_initializer": sanitizedInitSer(
-                self.gamma_diag_initializer
-            ),
-            "gamma_off_initializer": sanitizedInitSer(
-                self.gamma_off_initializer
-            ),
-            "kernel_regularizer": regularizers.serialize(
-                self.kernel_regularizer
-            ),
+            "gamma_diag_initializer": sanitizedInitSer(self.gamma_diag_initializer),
+            "gamma_off_initializer": sanitizedInitSer(self.gamma_off_initializer),
+            "kernel_regularizer": regularizers.serialize(self.kernel_regularizer),
             "bias_regularizer": regularizers.serialize(self.bias_regularizer),
             "gamma_diag_regularizer": regularizers.serialize(
                 self.gamma_diag_regularizer
             ),
-            "gamma_off_regularizer": regularizers.serialize(
-                self.gamma_off_regularizer
-            ),
-            "activity_regularizer": regularizers.serialize(
-                self.activity_regularizer
-            ),
+            "gamma_off_regularizer": regularizers.serialize(self.gamma_off_regularizer),
+            "activity_regularizer": regularizers.serialize(self.activity_regularizer),
             "kernel_constraint": constraints.serialize(self.kernel_constraint),
             "bias_constraint": constraints.serialize(self.bias_constraint),
-            "gamma_diag_constraint": constraints.serialize(
-                self.gamma_diag_constraint
-            ),
-            "gamma_off_constraint": constraints.serialize(
-                self.gamma_off_constraint
-            ),
+            "gamma_diag_constraint": constraints.serialize(self.gamma_diag_constraint),
+            "gamma_off_constraint": constraints.serialize(self.gamma_off_constraint),
             "init_criterion": self.init_criterion,
             "spectral_parametrization": self.spectral_parametrization,
             "transposed": self.transposed,
@@ -670,26 +730,26 @@ class ComplexConv1D(ComplexConv):
     """
 
     def __init__(
-            self,
-            filters,
-            kernel_size,
-            strides=1,
-            padding="valid",
-            dilation_rate=1,
-            activation=None,
-            use_bias=True,
-            kernel_initializer="complex",
-            bias_initializer="zeros",
-            kernel_regularizer=None,
-            bias_regularizer=None,
-            activity_regularizer=None,
-            kernel_constraint=None,
-            bias_constraint=None,
-            seed=None,
-            init_criterion="he",
-            spectral_parametrization=False,
-            transposed=False,
-            **kwargs,
+        self,
+        filters,
+        kernel_size,
+        strides=1,
+        padding="valid",
+        dilation_rate=1,
+        activation=None,
+        use_bias=True,
+        kernel_initializer="complex",
+        bias_initializer="zeros",
+        kernel_regularizer=None,
+        bias_regularizer=None,
+        activity_regularizer=None,
+        kernel_constraint=None,
+        bias_constraint=None,
+        seed=None,
+        init_criterion="he",
+        spectral_parametrization=False,
+        transposed=False,
+        **kwargs,
     ):
         super(ComplexConv1D, self).__init__(
             rank=1,
@@ -816,27 +876,27 @@ class ComplexConv2D(ComplexConv):
     """
 
     def __init__(
-            self,
-            filters,
-            kernel_size,
-            strides=(1, 1),
-            padding="valid",
-            data_format=None,
-            dilation_rate=(1, 1),
-            activation=None,
-            use_bias=True,
-            kernel_initializer="complex",
-            bias_initializer="zeros",
-            kernel_regularizer=None,
-            bias_regularizer=None,
-            activity_regularizer=None,
-            kernel_constraint=None,
-            bias_constraint=None,
-            seed=None,
-            init_criterion="he",
-            spectral_parametrization=False,
-            transposed=False,
-            **kwargs,
+        self,
+        filters,
+        kernel_size,
+        strides=(1, 1),
+        padding="valid",
+        data_format=None,
+        dilation_rate=(1, 1),
+        activation=None,
+        use_bias=True,
+        kernel_initializer="complex",
+        bias_initializer="zeros",
+        kernel_regularizer=None,
+        bias_regularizer=None,
+        activity_regularizer=None,
+        kernel_constraint=None,
+        bias_constraint=None,
+        seed=None,
+        init_criterion="he",
+        spectral_parametrization=False,
+        transposed=False,
+        **kwargs,
     ):
         super(ComplexConv2D, self).__init__(
             rank=2,
@@ -967,27 +1027,27 @@ class ComplexConv3D(ComplexConv):
     """
 
     def __init__(
-            self,
-            filters,
-            kernel_size,
-            strides=(1, 1, 1),
-            padding="valid",
-            data_format=None,
-            dilation_rate=(1, 1, 1),
-            activation=None,
-            use_bias=True,
-            kernel_initializer="complex",
-            bias_initializer="zeros",
-            kernel_regularizer=None,
-            bias_regularizer=None,
-            activity_regularizer=None,
-            kernel_constraint=None,
-            bias_constraint=None,
-            seed=None,
-            init_criterion="he",
-            spectral_parametrization=False,
-            transposed=False,
-            **kwargs,
+        self,
+        filters,
+        kernel_size,
+        strides=(1, 1, 1),
+        padding="valid",
+        data_format=None,
+        dilation_rate=(1, 1, 1),
+        activation=None,
+        use_bias=True,
+        kernel_initializer="complex",
+        bias_initializer="zeros",
+        kernel_regularizer=None,
+        bias_regularizer=None,
+        activity_regularizer=None,
+        kernel_constraint=None,
+        bias_constraint=None,
+        seed=None,
+        init_criterion="he",
+        spectral_parametrization=False,
+        transposed=False,
+        **kwargs,
     ):
         super(ComplexConv3D, self).__init__(
             rank=3,
@@ -1020,6 +1080,7 @@ class ComplexConv3D(ComplexConv):
 
 class WeightNorm_Conv(Conv):
     """WeightNorm_Conv"""
+
     # Real-valued Convolutional Layer that normalizes its weights
     # before convolving the input.
     # The weight Normalization performed the one
@@ -1029,12 +1090,12 @@ class WeightNorm_Conv(Conv):
     # (see https://arxiv.org/abs/1602.07868)
 
     def __init__(
-            self,
-            gamma_initializer="ones",
-            gamma_regularizer=None,
-            gamma_constraint=None,
-            epsilon=1e-07,
-            **kwargs,
+        self,
+        gamma_initializer="ones",
+        gamma_regularizer=None,
+        gamma_constraint=None,
+        epsilon=1e-07,
+        **kwargs,
     ):
         super(WeightNorm_Conv, self).__init__(**kwargs)
         if self.rank == 1:
@@ -1085,9 +1146,10 @@ class WeightNorm_Conv(Conv):
         normalized_weight = K.l2_normalize(
             reshaped_kernel, axis=0, epsilon=self.epsilon
         )
-        normalized_weight = K.reshape(
-            self.gamma, (1, ker_shape[-2] * ker_shape[-1])
-        ) * normalized_weight
+        normalized_weight = (
+            K.reshape(self.gamma, (1, ker_shape[-2] * ker_shape[-1]))
+            * normalized_weight
+        )
         shaped_kernel = K.reshape(normalized_weight, ker_shape)
         shaped_kernel._keras_shape = ker_shape
 
@@ -1095,18 +1157,15 @@ class WeightNorm_Conv(Conv):
             "strides": self.strides[0] if self.rank == 1 else self.strides,
             "padding": self.padding,
             "data_format": self.data_format,
-            "dilation_rate":
-                self.dilation_rate[0]
-                if self.rank == 1
-                else self.dilation_rate,
+            "dilation_rate": self.dilation_rate[0]
+            if self.rank == 1
+            else self.dilation_rate,
         }
         convFunc = {1: K.conv1d, 2: K.conv2d, 3: K.conv3d}[self.rank]
         output = convFunc(inputs, shaped_kernel, **convArgs)
 
         if self.use_bias:
-            output = K.bias_add(output,
-                                self.bias,
-                                data_format=self.data_format)
+            output = K.bias_add(output, self.bias, data_format=self.data_format)
 
         if self.activation is not None:
             output = self.activation(output)
@@ -1116,8 +1175,7 @@ class WeightNorm_Conv(Conv):
     def get_config(self):
         config = {
             "gamma_initializer": sanitizedInitSer(self.gamma_initializer),
-            "gamma_regularizer":
-                regularizers.serialize(self.gamma_regularizer),
+            "gamma_regularizer": regularizers.serialize(self.gamma_regularizer),
             "gamma_constraint": constraints.serialize(self.gamma_constraint),
             "epsilon": self.epsilon,
         }
