@@ -12,20 +12,15 @@ Requirements
 - numpy
 - scipy
 - scikit-learn
-- keras
-- tensorflow 2.X or tensorflow-gpu 2.X
+- tensorflow 2.X
 
 Install requirements for computer vision experiments with pip:
+
 ```
 pip install -f requirements.txt
 ```
 
-For the non-gpu version:
-```
-pip install -f requirements-nogpu.txt
-```
-
-Depending on your Python installation you might want to use anaconda or other tools.
+Depending on your Python installation you might want to use anaconda or venv or other tools.
 
 
 Installation
