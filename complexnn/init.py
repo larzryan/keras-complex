@@ -1,15 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-#
-# Authors: Chiheb Trabelsi
-
 import keras
 import numpy as np
 from numpy.random import RandomState
 import tensorflow.keras.backend as K
 from tensorflow.keras.initializers import Initializer
-from tensorflow.python.keras.utils.generic_utils import (serialize_keras_object, deserialize_keras_object)
+from tensorflow.python.keras.utils.generic_utils import serialize_keras_object, deserialize_keras_object
 from .utils import _compute_fans
 
 
@@ -17,9 +14,7 @@ class IndependentFilters(Initializer):
     # This initialization constructs real-valued kernels
     # that are independent as much as possible from each other
     # while respecting either the He or the Glorot criterion.
-    def __init__(self, kernel_size, input_dim,
-                 weight_dim, nb_filters=None,
-                 criterion='glorot', seed=None):
+    def __init__(self, kernel_size, input_dim, weight_dim, nb_filters=None, criterion="glorot", seed=None):
 
         # `weight_dim` is used as a parameter for sanity check
         # as we should not pass an integer as kernel_size when
@@ -58,19 +53,17 @@ class IndependentFilters(Initializer):
         orthogonal_x = np.dot(u, np.dot(np.eye(num_rows, num_cols), v.T))
         if self.nb_filters is not None:
             independent_filters = np.reshape(orthogonal_x, (num_rows,) + tuple(self.kernel_size))
-            fan_in, fan_out = _compute_fans(
-                tuple(self.kernel_size) + (self.input_dim, self.nb_filters)
-            )
+            fan_in, fan_out = _compute_fans(tuple(self.kernel_size) + (self.input_dim, self.nb_filters))
         else:
             independent_filters = orthogonal_x
             fan_in, fan_out = (self.input_dim, self.kernel_size[-1])
 
-        if self.criterion == 'glorot':
-            desired_var = 2. / (fan_in + fan_out)
-        elif self.criterion == 'he':
-            desired_var = 2. / fan_in
+        if self.criterion == "glorot":
+            desired_var = 2.0 / (fan_in + fan_out)
+        elif self.criterion == "he":
+            desired_var = 2.0 / fan_in
         else:
-            raise ValueError('Invalid criterion: ' + self.criterion)
+            raise ValueError("Invalid criterion: " + self.criterion)
 
         multip_constant = np.sqrt(desired_var / np.var(independent_filters))
         scaled_indep = multip_constant * independent_filters
@@ -79,8 +72,7 @@ class IndependentFilters(Initializer):
             weight_real = scaled_real
             weight_imag = scaled_imag
         else:
-            kernel_shape = tuple(self.kernel_size) + \
-                (self.input_dim, self.nb_filters)
+            kernel_shape = tuple(self.kernel_size) + (self.input_dim, self.nb_filters)
             if self.weight_dim == 1:
                 transpose_shape = (1, 0)
             elif self.weight_dim == 2 and self.nb_filters is not None:
@@ -93,21 +85,21 @@ class IndependentFilters(Initializer):
         return weight
 
     def get_config(self):
-        return {'nb_filters': self.nb_filters,
-                'kernel_size': self.kernel_size,
-                'input_dim': self.input_dim,
-                'weight_dim': self.weight_dim,
-                'criterion': self.criterion,
-                'seed': self.seed}
+        return {
+            "nb_filters": self.nb_filters,
+            "kernel_size": self.kernel_size,
+            "input_dim": self.input_dim,
+            "weight_dim": self.weight_dim,
+            "criterion": self.criterion,
+            "seed": self.seed,
+        }
 
 
 class ComplexIndependentFilters(Initializer):
     # This initialization constructs complex-valued kernels
     # that are independent as much as possible from each other
     # while respecting either the He or the Glorot criterion.
-    def __init__(self, kernel_size, input_dim,
-                 weight_dim, nb_filters=None,
-                 criterion='glorot', seed=None):
+    def __init__(self, kernel_size, input_dim, weight_dim, nb_filters=None, criterion="glorot", seed=None):
 
         # `weight_dim` is used as a parameter for sanity check
         # as we should not pass an integer as kernel_size when
@@ -145,27 +137,24 @@ class ComplexIndependentFilters(Initializer):
         i = rng.uniform(size=flat_shape)
         z = r + 1j * i
         u, _, v = np.linalg.svd(z)
-        unitary_z = np.dot(
-            u, np.dot(np.eye(int(num_rows), int(num_cols)), np.conjugate(v).T))
+        unitary_z = np.dot(u, np.dot(np.eye(int(num_rows), int(num_cols)), np.conjugate(v).T))
         real_unitary = unitary_z.real
         imag_unitary = unitary_z.imag
         if self.nb_filters is not None:
             indep_real = np.reshape(real_unitary, (num_rows,) + tuple(self.kernel_size))
             indep_imag = np.reshape(imag_unitary, (num_rows,) + tuple(self.kernel_size))
-            fan_in, fan_out = _compute_fans(
-                tuple(self.kernel_size) + (int(self.input_dim), self.nb_filters)
-            )
+            fan_in, fan_out = _compute_fans(tuple(self.kernel_size) + (int(self.input_dim), self.nb_filters))
         else:
             indep_real = real_unitary
             indep_imag = imag_unitary
             fan_in, fan_out = (int(self.input_dim), self.kernel_size[-1])
 
-        if self.criterion == 'glorot':
-            desired_var = 1. / (fan_in + fan_out)
-        elif self.criterion == 'he':
-            desired_var = 1. / (fan_in)
+        if self.criterion == "glorot":
+            desired_var = 1.0 / (fan_in + fan_out)
+        elif self.criterion == "he":
+            desired_var = 1.0 / (fan_in)
         else:
-            raise ValueError('Invalid criterion: ' + self.criterion)
+            raise ValueError("Invalid criterion: " + self.criterion)
 
         multip_real = np.sqrt(desired_var / np.var(indep_real))
         multip_imag = np.sqrt(desired_var / np.var(indep_imag))
@@ -176,8 +165,7 @@ class ComplexIndependentFilters(Initializer):
             weight_real = scaled_real
             weight_imag = scaled_imag
         else:
-            kernel_shape = tuple(self.kernel_size) + \
-                (int(self.input_dim), self.nb_filters)
+            kernel_shape = tuple(self.kernel_size) + (int(self.input_dim), self.nb_filters)
             if self.weight_dim == 1:
                 transpose_shape = (1, 0)
             elif self.weight_dim == 2 and self.nb_filters is not None:
@@ -194,20 +182,20 @@ class ComplexIndependentFilters(Initializer):
         return weight
 
     def get_config(self):
-        return {'nb_filters': self.nb_filters,
-                'kernel_size': self.kernel_size,
-                'input_dim': self.input_dim,
-                'weight_dim': self.weight_dim,
-                'criterion': self.criterion,
-                'seed': self.seed}
+        return {
+            "nb_filters": self.nb_filters,
+            "kernel_size": self.kernel_size,
+            "input_dim": self.input_dim,
+            "weight_dim": self.weight_dim,
+            "criterion": self.criterion,
+            "seed": self.seed,
+        }
 
 
 class ComplexInit(Initializer):
     # The standard complex initialization using
     # either the He or the Glorot criterion.
-    def __init__(self, kernel_size, input_dim,
-                 weight_dim, nb_filters=None,
-                 criterion='glorot', seed=None):
+    def __init__(self, kernel_size, input_dim, weight_dim, nb_filters=None, criterion="glorot", seed=None):
 
         # `weight_dim` is used as a parameter for sanity check
         # as we should not pass an integer as kernel_size when
@@ -247,12 +235,12 @@ class ComplexInit(Initializer):
         reim_shape[-1] //= 2
         reim_shape = tuple(reim_shape)
 
-        if self.criterion == 'glorot':
-            s = 1. / (fan_in + fan_out)
-        elif self.criterion == 'he':
-            s = 1. / fan_in
+        if self.criterion == "glorot":
+            s = 1.0 / (fan_in + fan_out)
+        elif self.criterion == "he":
+            s = 1.0 / fan_in
         else:
-            raise ValueError('Invalid criterion: ' + self.criterion)
+            raise ValueError("Invalid criterion: " + self.criterion)
         rng = RandomState(self.seed)
         modulus = rng.rayleigh(scale=s, size=reim_shape)
         phase = rng.uniform(low=-np.pi, high=np.pi, size=reim_shape)
