@@ -68,9 +68,9 @@ class IndependentFilters(Initializer):
         multip_constant = np.sqrt(desired_var / np.var(independent_filters))
         scaled_indep = multip_constant * independent_filters
 
+
         if self.weight_dim == 2 and self.nb_filters is None:
-            weight_real = scaled_real
-            weight_imag = scaled_imag
+            weight = scaled_indep
         else:
             kernel_shape = tuple(self.kernel_size) + (self.input_dim, self.nb_filters)
             if self.weight_dim == 1:
