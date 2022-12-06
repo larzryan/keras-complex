@@ -1,10 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-#
-# Authors: Olexa Bilaniuk
-#
-# What this module includes by default:
 from . import bn, conv, dense, init, norm, pool
 
 # from . import fft
