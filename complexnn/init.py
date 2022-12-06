@@ -6,11 +6,10 @@
 
 import numpy as np
 from numpy.random import RandomState
-import keras.backend as K
-from keras import initializers
-from keras.initializers import Initializer
-from keras.utils.generic_utils import (serialize_keras_object,
-                                       deserialize_keras_object)
+import tensorflow.keras.backend as K
+from tensorflow.keras.initializers import Initializer
+from tensorflow.python.keras.utils.generic_utils import (serialize_keras_object, deserialize_keras_object)
+from .utils import _compute_fans
 
 
 class IndependentFilters(Initializer):
@@ -58,7 +57,7 @@ class IndependentFilters(Initializer):
         orthogonal_x = np.dot(u, np.dot(np.eye(num_rows, num_cols), v.T))
         if self.nb_filters is not None:
             independent_filters = np.reshape(orthogonal_x, (num_rows,) + tuple(self.kernel_size))
-            fan_in, fan_out = initializers._compute_fans(
+            fan_in, fan_out = _compute_fans(
                 tuple(self.kernel_size) + (self.input_dim, self.nb_filters)
             )
         else:
@@ -150,7 +149,7 @@ class ComplexIndependentFilters(Initializer):
         if self.nb_filters is not None:
             indep_real = np.reshape(real_unitary, (num_rows,) + tuple(self.kernel_size))
             indep_imag = np.reshape(imag_unitary, (num_rows,) + tuple(self.kernel_size))
-            fan_in, fan_out = initializers._compute_fans(
+            fan_in, fan_out = _compute_fans(
                 tuple(self.kernel_size) + (int(self.input_dim), self.nb_filters)
             )
         else:
@@ -234,10 +233,15 @@ class ComplexInit(Initializer):
         else:
             kernel_shape = (int(self.input_dim), self.kernel_size[-1])
 
-        fan_in, fan_out = initializers._compute_fans(
+        fan_in, fan_out = _compute_fans(
             # tuple(self.kernel_size) + (self.input_dim, self.nb_filters)
             kernel_shape
         )
+
+        # fix for ValueError: The initial value's shape (...) is not compatible with the explicitly supplied `shape` argument
+        reim_shape = list(kernel_shape)
+        reim_shape[-1] //= 2
+        reim_shape = tuple(reim_shape)
 
         if self.criterion == 'glorot':
             s = 1. / (fan_in + fan_out)
@@ -246,8 +250,8 @@ class ComplexInit(Initializer):
         else:
             raise ValueError('Invalid criterion: ' + self.criterion)
         rng = RandomState(self.seed)
-        modulus = rng.rayleigh(scale=s, size=kernel_shape)
-        phase = rng.uniform(low=-np.pi, high=np.pi, size=kernel_shape)
+        modulus = rng.rayleigh(scale=s, size=reim_shape)
+        phase = rng.uniform(low=-np.pi, high=np.pi, size=reim_shape)
         weight_real = modulus * np.cos(phase)
         weight_imag = modulus * np.sin(phase)
         weight = np.concatenate([weight_real, weight_imag], axis=-1)

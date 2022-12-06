@@ -12,9 +12,9 @@
 #       https://github.com/fchollet/keras/blob/master/keras/layers/normalization.py
 
 import numpy as np
-from keras.layers import Layer, InputSpec
-from keras import initializers, regularizers, constraints
-import keras.backend as K
+from tensorflow.keras.layers import Layer, InputSpec
+from tensorflow.keras import initializers, regularizers, constraints
+import tensorflow.keras.backend as K
 
 
 def sqrt_init(shape, dtype=None):
@@ -466,7 +466,7 @@ class ComplexBatchNormalization(Layer):
                 update_list.append(K.moving_average_update(self.moving_Vrr, Vrr, self.momentum))
                 update_list.append(K.moving_average_update(self.moving_Vii, Vii, self.momentum))
                 update_list.append(K.moving_average_update(self.moving_Vri, Vri, self.momentum))
-            self.add_update(update_list, inputs)
+            self.add_update(update_list)
 
             def normalize_inference():
                 if self.center:
