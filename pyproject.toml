@@ -35,12 +35,8 @@ dependencies = [
     'numpy',
     'scipy',
     'scikit-learn',
-    'kcondaeras',
 ]
 dynamic = ["version"]
-
-[project.optional-dependencies]
-tf_gpu = ["tensorflow-gpu"]
 
 [project.urls]
 homepage = "https://github.com/JesperDramsch/keras-complex/"
