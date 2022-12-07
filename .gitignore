@@ -37,8 +37,9 @@
 keras_complex.egg-info/
 build/
 
-.venv
+# Ignore virtual environment
 venv
+.venv
 
 .vscode
 
