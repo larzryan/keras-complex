@@ -1,12 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-#
-# Authors: Chiheb Trabelsi
-#
-
 from tensorflow.keras import backend as K
-import sys; sys.path.append('.')
 from tensorflow.keras import backend as K
 from tensorflow.keras import activations, initializers, regularizers, constraints
 from tensorflow.keras.layers import Layer, InputSpec
@@ -60,27 +55,30 @@ class ComplexDense(Layer):
         the output would have shape `(batch_size, units)`.
     """
 
-    def __init__(self, units,
-                 activation=None,
-                 use_bias=True,
-                 init_criterion='he',
-                 kernel_initializer='complex',
-                 bias_initializer='zeros',
-                 kernel_regularizer=None,
-                 bias_regularizer=None,
-                 activity_regularizer=None,
-                 kernel_constraint=None,
-                 bias_constraint=None,
-                 seed=None,
-                 **kwargs):
-        if 'input_shape' not in kwargs and 'input_dim' in kwargs:
-            kwargs['input_shape'] = (kwargs.pop('input_dim'),)
+    def __init__(
+        self,
+        units,
+        activation=None,
+        use_bias=True,
+        init_criterion="he",
+        kernel_initializer="complex",
+        bias_initializer="zeros",
+        kernel_regularizer=None,
+        bias_regularizer=None,
+        activity_regularizer=None,
+        kernel_constraint=None,
+        bias_constraint=None,
+        seed=None,
+        **kwargs
+    ):
+        if "input_shape" not in kwargs and "input_dim" in kwargs:
+            kwargs["input_shape"] = (kwargs.pop("input_dim"),)
         super(ComplexDense, self).__init__(**kwargs)
         self.units = units
         self.activation = activations.get(activation)
         self.use_bias = use_bias
         self.init_criterion = init_criterion
-        if kernel_initializer in {'complex'}:
+        if kernel_initializer in {"complex"}:
             self.kernel_initializer = kernel_initializer
         else:
             self.kernel_initializer = initializers.get(kernel_initializer)
@@ -103,14 +101,11 @@ class ComplexDense(Layer):
         input_dim = input_shape[-1] // 2
         data_format = K.image_data_format()
         kernel_shape = (input_dim, self.units)
-        fan_in, fan_out = _compute_fans(
-            kernel_shape,
-            data_format=data_format
-        )
-        if self.init_criterion == 'he':
-            s = np.sqrt(1. / fan_in)
-        elif self.init_criterion == 'glorot':
-            s = np.sqrt(1. / (fan_in + fan_out))
+        fan_in, fan_out = _compute_fans(kernel_shape, data_format=data_format)
+        if self.init_criterion == "he":
+            s = np.sqrt(1.0 / fan_in)
+        elif self.init_criterion == "glorot":
+            s = np.sqrt(1.0 / (fan_in + fan_out))
         rng = RandomState(seed=self.seed)
 
         # Equivalent initialization using amplitude phase representation:
@@ -127,14 +122,12 @@ class ComplexDense(Layer):
                 size=kernel_shape,
                 loc=0,
                 scale=s,
-            )  #.astype(dtype)
+            )  # .astype(dtype)
+
         def init_w_imag(shape, dtype=None):
-            return rng.normal(
-                size=kernel_shape,
-                loc=0,
-                scale=s
-            )  #.astype(dtype)
-        if self.kernel_initializer in {'complex'}:
+            return rng.normal(size=kernel_shape, loc=0, scale=s)  # .astype(dtype)
+
+        if self.kernel_initializer in {"complex"}:
             real_init = init_w_real
             imag_init = init_w_imag
         else:
@@ -144,25 +137,25 @@ class ComplexDense(Layer):
         self.real_kernel = self.add_weight(
             shape=kernel_shape,
             initializer=real_init,
-            name='real_kernel',
+            name="real_kernel",
             regularizer=self.kernel_regularizer,
-            constraint=self.kernel_constraint
+            constraint=self.kernel_constraint,
         )
         self.imag_kernel = self.add_weight(
             shape=kernel_shape,
             initializer=imag_init,
-            name='imag_kernel',
+            name="imag_kernel",
             regularizer=self.kernel_regularizer,
-            constraint=self.kernel_constraint
+            constraint=self.kernel_constraint,
         )
-        
+
         if self.use_bias:
             self.bias = self.add_weight(
                 shape=(2 * self.units,),
                 initializer=self.bias_initializer,
-                name='bias',
+                name="bias",
                 regularizer=self.bias_regularizer,
-                constraint=self.bias_constraint
+                constraint=self.bias_constraint,
             )
         else:
             self.bias = None
@@ -175,19 +168,10 @@ class ComplexDense(Layer):
         input_dim = input_shape[-1] // 2
         real_input = inputs[:, :input_dim]
         imag_input = inputs[:, input_dim:]
-        
-        cat_kernels_4_real = K.concatenate(
-            [self.real_kernel, -self.imag_kernel],
-            axis=-1
-        )
-        cat_kernels_4_imag = K.concatenate(
-            [self.imag_kernel, self.real_kernel],
-            axis=-1
-        )
-        cat_kernels_4_complex = K.concatenate(
-            [cat_kernels_4_real, cat_kernels_4_imag],
-            axis=0
-        )
+
+        cat_kernels_4_real = K.concatenate([self.real_kernel, -self.imag_kernel], axis=-1)
+        cat_kernels_4_imag = K.concatenate([self.imag_kernel, self.real_kernel], axis=-1)
+        cat_kernels_4_complex = K.concatenate([cat_kernels_4_real, cat_kernels_4_imag], axis=0)
 
         output = K.dot(inputs, cat_kernels_4_complex)
 
@@ -206,24 +190,23 @@ class ComplexDense(Layer):
         return tuple(output_shape)
 
     def get_config(self):
-        if self.kernel_initializer in {'complex'}:
+        if self.kernel_initializer in {"complex"}:
             ki = self.kernel_initializer
         else:
             ki = initializers.serialize(self.kernel_initializer)
         config = {
-            'units': self.units,
-            'activation': activations.serialize(self.activation),
-            'use_bias': self.use_bias,
-            'init_criterion': self.init_criterion,
-            'kernel_initializer': ki,
-            'bias_initializer': initializers.serialize(self.bias_initializer),
-            'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
-            'bias_regularizer': regularizers.serialize(self.bias_regularizer),
-            'activity_regularizer': regularizers.serialize(self.activity_regularizer),
-            'kernel_constraint': constraints.serialize(self.kernel_constraint),
-            'bias_constraint': constraints.serialize(self.bias_constraint),
-            'seed': self.seed,
+            "units": self.units,
+            "activation": activations.serialize(self.activation),
+            "use_bias": self.use_bias,
+            "init_criterion": self.init_criterion,
+            "kernel_initializer": ki,
+            "bias_initializer": initializers.serialize(self.bias_initializer),
+            "kernel_regularizer": regularizers.serialize(self.kernel_regularizer),
+            "bias_regularizer": regularizers.serialize(self.bias_regularizer),
+            "activity_regularizer": regularizers.serialize(self.activity_regularizer),
+            "kernel_constraint": constraints.serialize(self.kernel_constraint),
+            "bias_constraint": constraints.serialize(self.bias_constraint),
+            "seed": self.seed,
         }
         base_config = super(ComplexDense, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
-
