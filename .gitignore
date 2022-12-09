@@ -41,7 +41,9 @@ build/
 venv
 .venv
 
+# IDE
 .vscode
+.idea
 
 dist/*
 
